@@ -8,7 +8,8 @@
     "build": "tsc -b && vite build",
     "preview": "vite preview",
     "server": "tsx server/index.ts",
-    "start": "tsx server/index.ts"
+    "start": "tsx server/index.ts",
+    "bundle:yandex": "npm run build && powershell Compress-Archive -Path dist/* -DestinationPath yandex-games.zip -Force"
   },
   "dependencies": {
     "@react-three/drei": "^10.7.9",
@@ -19,6 +20,7 @@
     "cors": "^2.8.6",
     "express": "^5.3.0",
     "lucide-react": "^1.72.0",
+    "peerjs": "^1.5.5",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
     "socket.io": "^4.8.4",

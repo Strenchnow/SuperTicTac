@@ -6,6 +6,7 @@ import { Scene, type SceneRef } from './components/3d';
 import { Navbar, Controls, RulesModal, VictoryModal, MultiplayerModal, type MultiplayerPlayer } from './components/ui';
 import { playMove, playSectorWin, playGameWin, playInvalid, playClick } from './utils/audio';
 import { socket } from './network/socket';
+import { yandex } from './utils/yandex';
 
 export default function App() {
   const [gameState, setGameState] = useState<GameState>(() =>
@@ -29,6 +30,9 @@ export default function App() {
 
   // Check URL parameters for direct room joining (?room=CODE)
   useEffect(() => {
+    // Initialize Yandex Games SDK if in Yandex Games environment
+    yandex.init();
+
     const urlParams = new URLSearchParams(window.location.search);
     const roomParam = urlParams.get('room');
     if (roomParam) {
@@ -142,6 +146,19 @@ export default function App() {
 
     return () => clearInterval(timer);
   }, [gameStartTime, gameState.winner]);
+
+  // Handle Yandex Games gameplay lifecycle and interstitial ad on game end
+  useEffect(() => {
+    if (gameState.winner !== null) {
+      yandex.notifyGameplayStop();
+      const adTimer = setTimeout(() => {
+        yandex.showFullscreenAd();
+      }, 1500);
+      return () => clearTimeout(adTimer);
+    } else {
+      yandex.notifyGameplayStart();
+    }
+  }, [gameState.winner]);
 
   // Clean up any pending AI timeout on unmount
   useEffect(() => {
