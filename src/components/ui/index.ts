@@ -2,3 +2,4 @@ export * from './Navbar';
 export * from './Controls';
 export * from './RulesModal';
 export * from './VictoryModal';
+export * from './MultiplayerModal';

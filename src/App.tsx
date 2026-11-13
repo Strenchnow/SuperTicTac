@@ -1,10 +1,11 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
-import type { GameState, GameMode, AIDifficulty } from './game/types';
+import type { GameState, GameMode, AIDifficulty, Player } from './game/types';
 import { createInitialState, isValidMove, makeMove } from './game/engine';
 import { getBestMove } from './game/ai';
 import { Scene, type SceneRef } from './components/3d';
-import { Navbar, Controls, RulesModal, VictoryModal } from './components/ui';
-import { playMove, playSectorWin, playGameWin, playInvalid } from './utils/audio';
+import { Navbar, Controls, RulesModal, VictoryModal, MultiplayerModal, type MultiplayerPlayer } from './components/ui';
+import { playMove, playSectorWin, playGameWin, playInvalid, playClick } from './utils/audio';
+import { socket } from './network/socket';
 
 export default function App() {
   const [gameState, setGameState] = useState<GameState>(() =>
@@ -15,8 +16,121 @@ export default function App() {
   const [gameStartTime, setGameStartTime] = useState<number | null>(null);
   const [gameDuration, setGameDuration] = useState<number>(0);
 
+  // Multiplayer States
+  const [isMultiplayerOpen, setIsMultiplayerOpen] = useState<boolean>(false);
+  const [roomId, setRoomId] = useState<string | null>(null);
+  const [myRole, setMyRole] = useState<Player | null>(null);
+  const [multiplayerPlayers, setMultiplayerPlayers] = useState<MultiplayerPlayer[]>([]);
+  const [multiplayerError, setMultiplayerError] = useState<string | null>(null);
+  const [isMultiplayerLoading, setIsMultiplayerLoading] = useState<boolean>(false);
+
   const sceneRef = useRef<SceneRef>(null);
   const aiTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Check URL parameters for direct room joining (?room=CODE)
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const roomParam = urlParams.get('room');
+    if (roomParam) {
+      setIsMultiplayerOpen(true);
+    }
+  }, []);
+
+  // Setup Socket.io Event Listeners
+  useEffect(() => {
+    function onRoomCreated(data: {
+      roomId: string;
+      player: Player;
+      gameState: GameState;
+      players: MultiplayerPlayer[];
+    }) {
+      setRoomId(data.roomId);
+      setMyRole(data.player);
+      setGameState(data.gameState);
+      setMultiplayerPlayers(data.players);
+      setIsMultiplayerLoading(false);
+      setMultiplayerError(null);
+      // Update browser URL without reloading
+      const newUrl = `${window.location.pathname}?room=${data.roomId}`;
+      window.history.replaceState(null, '', newUrl);
+    }
+
+    function onRoomJoined(data: {
+      roomId: string;
+      player: Player;
+      gameState: GameState;
+      players: MultiplayerPlayer[];
+    }) {
+      setRoomId(data.roomId);
+      setMyRole(data.player);
+      setGameState(data.gameState);
+      setMultiplayerPlayers(data.players);
+      setIsMultiplayerLoading(false);
+      setMultiplayerError(null);
+      const newUrl = `${window.location.pathname}?room=${data.roomId}`;
+      window.history.replaceState(null, '', newUrl);
+    }
+
+    function onPlayerJoined(data: { newPlayer: MultiplayerPlayer; players: MultiplayerPlayer[] }) {
+      setMultiplayerPlayers(data.players);
+    }
+
+    function onPlayerLeft(data: { players: MultiplayerPlayer[] }) {
+      setMultiplayerPlayers(data.players);
+    }
+
+    function onMoveMade(data: {
+      sector: number;
+      cell: number;
+      player: Player;
+      gameState: GameState;
+    }) {
+      setGameState((prevState) => {
+        const prevSectors = prevState.sectorWinners;
+        const newSectorWon =
+          data.gameState.sectorWinners[data.sector] !== null &&
+          prevSectors[data.sector] === null;
+
+        if (data.gameState.winner) {
+          playGameWin();
+        } else if (newSectorWon) {
+          playSectorWin();
+        } else {
+          playMove(data.player);
+        }
+        return data.gameState;
+      });
+    }
+
+    function onGameRestarted(data: { gameState: GameState }) {
+      setGameState(data.gameState);
+      setGameStartTime(null);
+      setGameDuration(0);
+    }
+
+    function onErrorMessage(data: { message: string }) {
+      setMultiplayerError(data.message);
+      setIsMultiplayerLoading(false);
+    }
+
+    socket.on('room_created', onRoomCreated);
+    socket.on('room_joined', onRoomJoined);
+    socket.on('player_joined', onPlayerJoined);
+    socket.on('player_left', onPlayerLeft);
+    socket.on('move_made', onMoveMade);
+    socket.on('game_restarted', onGameRestarted);
+    socket.on('error_message', onErrorMessage);
+
+    return () => {
+      socket.off('room_created', onRoomCreated);
+      socket.off('room_joined', onRoomJoined);
+      socket.off('player_joined', onPlayerJoined);
+      socket.off('player_left', onPlayerLeft);
+      socket.off('move_made', onMoveMade);
+      socket.off('game_restarted', onGameRestarted);
+      socket.off('error_message', onErrorMessage);
+    };
+  }, []);
 
   // Active game timer
   useEffect(() => {
@@ -38,8 +152,47 @@ export default function App() {
     };
   }, []);
 
+  // Multiplayer Actions
+  const handleCreateRoom = useCallback((name: string) => {
+    setIsMultiplayerLoading(true);
+    setMultiplayerError(null);
+    if (!socket.connected) {
+      socket.connect();
+    }
+    socket.emit('create_room', { playerName: name });
+  }, []);
+
+  const handleJoinRoom = useCallback((code: string, name: string) => {
+    setIsMultiplayerLoading(true);
+    setMultiplayerError(null);
+    if (!socket.connected) {
+      socket.connect();
+    }
+    socket.emit('join_room', { roomId: code, playerName: name });
+  }, []);
+
+  const handleLeaveRoom = useCallback(() => {
+    playClick();
+    if (socket.connected) {
+      socket.disconnect();
+    }
+    setRoomId(null);
+    setMyRole(null);
+    setMultiplayerPlayers([]);
+    setMultiplayerError(null);
+    setIsMultiplayerLoading(false);
+    setGameState(createInitialState('pvp', 'O', 'medium'));
+    // Clear URL search param
+    window.history.replaceState(null, '', window.location.pathname);
+  }, []);
+
   // Reset / New Game
   const handleResetGame = useCallback(() => {
+    if (roomId) {
+      socket.emit('restart_game', { roomId });
+      return;
+    }
+
     if (aiTimeoutRef.current) {
       clearTimeout(aiTimeoutRef.current);
       aiTimeoutRef.current = null;
@@ -50,7 +203,7 @@ export default function App() {
     setIsAiThinking(false);
     setGameStartTime(null);
     setGameDuration(0);
-  }, []);
+  }, [roomId]);
 
   // Mode change handler (PvP vs AI)
   const handleChangeMode = useCallback((newMode: GameMode) => {
@@ -72,12 +225,22 @@ export default function App() {
   const checkValidMove = useCallback(
     (sector: number, cell: number): boolean => {
       if (gameState.winner !== null || isAiThinking) return false;
+
+      // In Multiplayer mode
+      if (roomId) {
+        if (multiplayerPlayers.length < 2) return false;
+        if (myRole !== gameState.currentPlayer) return false;
+        return isValidMove(gameState, sector, cell);
+      }
+
+      // In AI mode
       if (gameState.mode === 'ai' && gameState.currentPlayer === gameState.aiPlayer) {
         return false;
       }
+
       return isValidMove(gameState, sector, cell);
     },
-    [gameState, isAiThinking]
+    [gameState, isAiThinking, roomId, multiplayerPlayers.length, myRole]
   );
 
   // AI Move Execution
@@ -86,7 +249,6 @@ export default function App() {
 
     aiTimeoutRef.current = setTimeout(() => {
       setGameState((latestState) => {
-        // Verify state is still active and valid for AI move
         if (
           latestState.winner !== null ||
           latestState.mode !== 'ai' ||
@@ -123,26 +285,49 @@ export default function App() {
     }, 400);
   }, []);
 
-  // Human player move handler
+  // Player move handler (click on 3D cell)
   const handleCellClick = useCallback(
     (sector: number, cell: number) => {
-      // Disallow moves if game is already decided or AI is computing
-      if (gameState.winner !== null || isAiThinking) {
+      // Disallow moves if game is already decided
+      if (gameState.winner !== null) {
         return;
       }
 
-      // Disallow clicking during AI turn in AI mode
+      // Multiplayer Room Move
+      if (roomId) {
+        if (multiplayerPlayers.length < 2) {
+          playInvalid();
+          return;
+        }
+        if (myRole !== gameState.currentPlayer) {
+          playInvalid();
+          return;
+        }
+        if (!isValidMove(gameState, sector, cell)) {
+          playInvalid();
+          return;
+        }
+
+        if (!gameStartTime) {
+          setGameStartTime(Date.now());
+        }
+
+        // Send move to server
+        socket.emit('make_move', { roomId, sector, cell });
+        return;
+      }
+
+      // Local / AI Game Move
+      if (isAiThinking) return;
       if (gameState.mode === 'ai' && gameState.currentPlayer === gameState.aiPlayer) {
         return;
       }
 
-      // Check move legality
       if (!isValidMove(gameState, sector, cell)) {
         playInvalid();
         return;
       }
 
-      // Start duration clock on the first move made
       if (!gameStartTime) {
         setGameStartTime(Date.now());
       }
@@ -164,7 +349,6 @@ export default function App() {
 
       setGameState(nextState);
 
-      // Trigger AI turn if game is still going and next player is AI
       if (
         nextState.mode === 'ai' &&
         nextState.winner === null &&
@@ -173,12 +357,21 @@ export default function App() {
         triggerAiMove();
       }
     },
-    [gameState, isAiThinking, gameStartTime, triggerAiMove]
+    [
+      gameState,
+      roomId,
+      multiplayerPlayers.length,
+      myRole,
+      gameStartTime,
+      isAiThinking,
+      triggerAiMove,
+    ]
   );
 
   // If user switched mode to AI during an active game on AI's turn
   useEffect(() => {
     if (
+      !roomId &&
       gameState.mode === 'ai' &&
       gameState.winner === null &&
       gameState.currentPlayer === gameState.aiPlayer &&
@@ -187,6 +380,7 @@ export default function App() {
       triggerAiMove();
     }
   }, [
+    roomId,
     gameState.mode,
     gameState.currentPlayer,
     gameState.aiPlayer,
@@ -216,6 +410,9 @@ export default function App() {
         isAiThinking={isAiThinking}
         mode={gameState.mode}
         aiPlayer={gameState.aiPlayer}
+        isMultiplayer={Boolean(roomId)}
+        myRole={myRole}
+        roomCode={roomId}
       />
 
       {/* Bottom Floating Cyber-Dock Controls */}
@@ -227,13 +424,30 @@ export default function App() {
         onResetGame={handleResetGame}
         onResetCamera={() => sceneRef.current?.resetCamera()}
         onOpenRules={() => setIsRulesOpen(true)}
-        disabled={isAiThinking}
+        onOpenMultiplayer={() => setIsMultiplayerOpen(true)}
+        isMultiplayerActive={Boolean(roomId)}
+        roomId={roomId}
+        disabled={isAiThinking || Boolean(roomId && myRole !== gameState.currentPlayer)}
       />
 
       {/* Rules & Tutorial Modal */}
       <RulesModal
         isOpen={isRulesOpen}
         onClose={() => setIsRulesOpen(false)}
+      />
+
+      {/* Multiplayer Lobby Modal */}
+      <MultiplayerModal
+        isOpen={isMultiplayerOpen}
+        onClose={() => setIsMultiplayerOpen(false)}
+        roomId={roomId}
+        myRole={myRole}
+        players={multiplayerPlayers}
+        onCreateRoom={handleCreateRoom}
+        onJoinRoom={handleJoinRoom}
+        onLeaveRoom={handleLeaveRoom}
+        errorMessage={multiplayerError}
+        isLoading={isMultiplayerLoading}
       />
 
       {/* Victory Celebration Modal */}

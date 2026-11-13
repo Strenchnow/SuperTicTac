@@ -9,6 +9,9 @@ interface NavbarProps {
   isAiThinking?: boolean;
   mode?: GameMode;
   aiPlayer?: Player;
+  isMultiplayer?: boolean;
+  myRole?: Player | null;
+  roomCode?: string | null;
 }
 
 const SECTOR_NAMES = [
@@ -30,11 +33,18 @@ export const Navbar: React.FC<NavbarProps> = ({
   isAiThinking = false,
   mode = 'pvp',
   aiPlayer = 'O',
+  isMultiplayer = false,
+  myRole = null,
+  roomCode = null,
 }) => {
   const isAiTurn = mode === 'ai' && currentPlayer === aiPlayer;
   const isX = currentPlayer === 'X';
+  const isMyTurn = !isMultiplayer || myRole === currentPlayer;
 
   const getPlayerLabel = (player: Player) => {
+    if (isMultiplayer) {
+      return player === myRole ? 'Вы' : 'Соперник';
+    }
     if (mode === 'ai') {
       return player === aiPlayer ? 'ИИ' : 'Вы';
     }
@@ -57,6 +67,11 @@ export const Navbar: React.FC<NavbarProps> = ({
               <span className="hidden md:inline-block px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider rounded bg-cyan-950/80 text-cyan-400 border border-cyan-500/40">
                 PRO
               </span>
+              {roomCode && (
+                <span className="hidden sm:inline-block px-2 py-0.5 text-[10px] font-mono uppercase tracking-wider rounded bg-emerald-950/80 text-emerald-400 border border-emerald-500/40 shadow-[0_0_8px_rgba(16,185,129,0.3)]">
+                  {roomCode}
+                </span>
+              )}
             </div>
             <div className="text-[10px] text-slate-400 font-mono tracking-tight hidden sm:block">
               СУПЕР КРЕСТИКИ-НОЛИКИ 9×9
@@ -77,6 +92,19 @@ export const Navbar: React.FC<NavbarProps> = ({
           ) : (
             <>
               {/* Whose turn is it */}
+              {isMultiplayer && (
+                <div
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs sm:text-sm font-bold ${
+                    isMyTurn
+                      ? 'bg-emerald-950/60 border-emerald-500/50 text-emerald-300 shadow-[0_0_12px_rgba(16,185,129,0.3)] animate-pulse'
+                      : 'bg-slate-800/80 border-slate-700 text-slate-400'
+                  }`}
+                >
+                  <span className={`w-2 h-2 rounded-full ${isMyTurn ? 'bg-emerald-400' : 'bg-slate-500'}`} />
+                  <span>{isMyTurn ? 'ВАШ ХОД!' : 'Ход соперника...'}</span>
+                </div>
+              )}
+
               <div
                 className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border text-xs sm:text-sm font-bold transition-all duration-300 ${
                   isX

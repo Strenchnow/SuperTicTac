@@ -9,6 +9,7 @@ import {
   Bot,
   Sparkles,
   ChevronUp,
+  Globe,
 } from 'lucide-react';
 import { GameMode, AIDifficulty } from '../../game/types';
 import { useAudioState, playClick } from '../../utils/audio';
@@ -21,6 +22,9 @@ export interface ControlsProps {
   onResetGame: () => void;
   onResetCamera: () => void;
   onOpenRules: () => void;
+  onOpenMultiplayer?: () => void;
+  isMultiplayerActive?: boolean;
+  roomId?: string | null;
   disabled?: boolean;
 }
 
@@ -32,6 +36,9 @@ export const Controls: React.FC<ControlsProps> = ({
   onResetGame,
   onResetCamera,
   onOpenRules,
+  onOpenMultiplayer,
+  isMultiplayerActive = false,
+  roomId = null,
   disabled = false,
 }) => {
   const { muted, toggle } = useAudioState();
@@ -197,6 +204,27 @@ export const Controls: React.FC<ControlsProps> = ({
           )}
 
           <div className="h-5 w-px bg-white/10 mx-0.5" />
+
+          {/* Multiplayer Button */}
+          {onOpenMultiplayer && (
+            <button
+              onClick={() => {
+                playClick();
+                onOpenMultiplayer();
+              }}
+              className={`flex items-center gap-1.5 px-3 py-2 rounded-xl border transition active:scale-95 ${
+                isMultiplayerActive
+                  ? 'bg-emerald-950/50 border-emerald-500/60 text-emerald-300 shadow-[0_0_12px_rgba(16,185,129,0.25)]'
+                  : 'bg-slate-800/80 hover:bg-slate-700/80 border-cyan-500/30 text-cyan-300'
+              }`}
+              title="Сетевая игра онлайн"
+            >
+              <Globe className={`w-4 h-4 ${isMultiplayerActive ? 'text-emerald-400 animate-pulse' : 'text-cyan-400'}`} />
+              <span className="text-xs font-bold">
+                {isMultiplayerActive ? `Онлайн (${roomId})` : 'По сети'}
+              </span>
+            </button>
+          )}
 
           {/* Reset Camera Button */}
           <button
