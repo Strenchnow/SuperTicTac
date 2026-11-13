@@ -5,6 +5,7 @@ import * as THREE from 'three';
 import { DIMENSIONS, COLORS } from './constants';
 import { Piece } from './Piece';
 import type { CellValue, Player } from '../../game/types';
+import { playHover } from '../../utils/audio';
 
 export interface CellProps {
   sector: number;
@@ -45,6 +46,9 @@ export const Cell: React.FC<CellProps> = ({
     e.stopPropagation();
     if (isValid && !value) {
       document.body.style.cursor = 'pointer';
+      playHover();
+    } else {
+      document.body.style.cursor = 'not-allowed';
     }
     onHover?.(sector, cell, true);
   };
@@ -57,9 +61,7 @@ export const Cell: React.FC<CellProps> = ({
 
   const handleClick = (e: ThreeEvent<MouseEvent>) => {
     e.stopPropagation();
-    if (isValid && !value) {
-      onSelect?.(sector, cell);
-    }
+    onSelect?.(sector, cell);
   };
 
   return (
