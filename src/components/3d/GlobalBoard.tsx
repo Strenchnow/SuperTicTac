@@ -23,16 +23,22 @@ const WinningLineBeam: React.FC<{
   color: string;
 }> = ({ start, end, color }) => {
   const beamRef = useRef<THREE.Mesh>(null);
-  const p1 = new THREE.Vector3(...start);
-  const p2 = new THREE.Vector3(...end);
-  const length = p1.distanceTo(p2);
-  const mid = p1.clone().add(p2).multiplyScalar(0.5);
-  mid.y = 1.2; // Elevated beam above the sectors
 
-  const orientation = new THREE.Matrix4();
-  const up = new THREE.Vector3(0, 1, 0);
-  const dir = p2.clone().sub(p1).normalize();
-  orientation.lookAt(p1, p2, up);
+  const { mid, beamLength, quaternion } = React.useMemo(() => {
+    const p1 = new THREE.Vector3(...start);
+    const p2 = new THREE.Vector3(...end);
+    const length = p1.distanceTo(p2) + DIMENSIONS.localBoardSize * 0.9;
+    const midPoint = p1.clone().add(p2).multiplyScalar(0.5);
+    midPoint.y = 1.25;
+
+    const dir = p2.clone().sub(p1).normalize();
+    const q = new THREE.Quaternion().setFromUnitVectors(
+      new THREE.Vector3(0, 1, 0),
+      dir
+    );
+
+    return { mid: midPoint, beamLength: length, quaternion: q };
+  }, [start, end]);
 
   useFrame(({ clock }) => {
     if (!beamRef.current) return;
@@ -41,17 +47,10 @@ const WinningLineBeam: React.FC<{
   });
 
   return (
-    <group position={[mid.x, mid.y, mid.z]}>
+    <group position={[mid.x, mid.y, mid.z]} quaternion={quaternion}>
       {/* Laser cylinder */}
-      <mesh
-        ref={beamRef}
-        rotation={[
-          dir.z !== 0 ? Math.PI / 2 : 0,
-          0,
-          dir.x !== 0 ? Math.PI / 2 : 0,
-        ]}
-      >
-        <cylinderGeometry args={[0.08, 0.08, length, 16]} />
+      <mesh ref={beamRef}>
+        <cylinderGeometry args={[0.08, 0.08, beamLength, 16]} />
         <meshStandardMaterial
           color={color}
           emissive={color}
@@ -63,18 +62,12 @@ const WinningLineBeam: React.FC<{
       </mesh>
 
       {/* Outer energy glow */}
-      <mesh
-        rotation={[
-          dir.z !== 0 ? Math.PI / 2 : 0,
-          0,
-          dir.x !== 0 ? Math.PI / 2 : 0,
-        ]}
-      >
-        <cylinderGeometry args={[0.2, 0.2, length, 16]} />
+      <mesh>
+        <cylinderGeometry args={[0.22, 0.22, beamLength, 16]} />
         <meshBasicMaterial
           color={color}
           transparent
-          opacity={0.25}
+          opacity={0.28}
           side={THREE.DoubleSide}
         />
       </mesh>
