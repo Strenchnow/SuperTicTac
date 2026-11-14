@@ -9,7 +9,7 @@
     "preview": "vite preview",
     "server": "tsx server/index.ts",
     "start": "tsx server/index.ts",
-    "bundle:yandex": "npm run build && powershell Compress-Archive -Path dist/* -DestinationPath yandex-games.zip -Force"
+    "bundle:playhop": "npm run build && powershell Compress-Archive -Path dist/* -DestinationPath playhop.zip -Force"
   },
   "dependencies": {
     "@react-three/drei": "^10.7.9",

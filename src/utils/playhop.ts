@@ -1,6 +1,6 @@
 import { isMuted, setMuted } from './audio';
 
-export interface YandexSDK {
+export interface PlayhopSDK {
   features: {
     LoadingAPI?: {
       ready: () => void;
@@ -34,78 +34,92 @@ export interface YandexSDK {
     isTablet: () => boolean;
     isDesktop: () => boolean;
   };
+  environment?: {
+    i18n?: {
+      lang?: string;
+    };
+  };
 }
 
 declare global {
   interface Window {
     YaGames?: {
-      init: (options?: unknown) => Promise<YandexSDK>;
+      init: (options?: unknown) => Promise<PlayhopSDK>;
     };
-    ysdk?: YandexSDK;
+    PlayhopGames?: {
+      init: (options?: unknown) => Promise<PlayhopSDK>;
+    };
+    ysdk?: PlayhopSDK;
   }
 }
 
-class YandexService {
-  private ysdk: YandexSDK | null = null;
+class PlayhopService {
+  private sdk: PlayhopSDK | null = null;
   private isInitialized = false;
   private lastAdTime = 0;
-  private adCooldownMs = 65000; // 65 seconds cooldown between interstitial ads
+  private adCooldownMs = 60000; // 60 seconds cooldown between interstitial ads
   private wasMutedBeforeAd = false;
   private wasMutedBeforeBlur = false;
 
   constructor() {
     if (typeof window !== 'undefined') {
-      // Automatic sound mute on window blur / tab switch (Mandatory for Yandex Games)
+      // Auto-mute on tab switch / window blur
       document.addEventListener('visibilitychange', () => {
         if (document.hidden) {
           this.wasMutedBeforeBlur = isMuted();
           setMuted(true);
-          this.ysdk?.features.GameplayAPI?.stop();
+          this.sdk?.features.GameplayAPI?.stop();
         } else {
           if (!this.wasMutedBeforeBlur) {
             setMuted(false);
           }
-          this.ysdk?.features.GameplayAPI?.start();
+          this.sdk?.features.GameplayAPI?.start();
         }
       });
     }
   }
 
-  public async init(): Promise<YandexSDK | null> {
-    if (this.isInitialized) return this.ysdk;
-    if (typeof window === 'undefined' || !window.YaGames) {
-      console.log('[YandexSDK] Not running in Yandex Games environment.');
+  public async init(): Promise<PlayhopSDK | null> {
+    if (this.isInitialized) return this.sdk;
+    if (typeof window === 'undefined') return null;
+
+    const initFn = window.YaGames?.init || window.PlayhopGames?.init;
+    if (!initFn) {
+      console.log('[PlayhopSDK] Running outside Playhop / WebGL portal.');
       return null;
     }
 
     try {
-      this.ysdk = await window.YaGames.init();
-      window.ysdk = this.ysdk;
+      this.sdk = await initFn();
+      window.ysdk = this.sdk;
       this.isInitialized = true;
-      console.log('[YandexSDK] Initialized successfully.');
+      console.log('[PlayhopSDK] Initialized successfully.');
 
-      // Notify Yandex that the game is loaded and ready
       this.notifyGameReady();
-      return this.ysdk;
+      return this.sdk;
     } catch (err) {
-      console.warn('[YandexSDK] Init error:', err);
+      console.warn('[PlayhopSDK] Init error:', err);
       return null;
     }
   }
 
+  public getLanguage(): string {
+    return this.sdk?.environment?.i18n?.lang || (typeof navigator !== 'undefined' ? navigator.language.slice(0, 2) : 'en');
+  }
+
   public notifyGameReady(): void {
-    if (this.ysdk?.features.LoadingAPI?.ready) {
-      this.ysdk.features.LoadingAPI.ready();
-      console.log('[YandexSDK] LoadingAPI.ready() sent.');
+    if (this.sdk?.features.LoadingAPI?.ready) {
+      this.sdk.features.LoadingAPI.ready();
+      console.log('[PlayhopSDK] LoadingAPI.ready() sent.');
     }
   }
 
   public notifyGameplayStart(): void {
-    this.ysdk?.features.GameplayAPI?.start();
+    this.sdk?.features.GameplayAPI?.start();
   }
 
   public notifyGameplayStop(): void {
-    this.ysdk?.features.GameplayAPI?.stop();
+    this.sdk?.features.GameplayAPI?.stop();
   }
 
   /**
@@ -115,14 +129,13 @@ class YandexService {
     onClose?: () => void;
     onError?: () => void;
   }): void {
-    if (!this.ysdk) {
+    if (!this.sdk) {
       options?.onClose?.();
       return;
     }
 
     const now = Date.now();
     if (now - this.lastAdTime < this.adCooldownMs) {
-      // Cooldown active, skip ad silently
       options?.onClose?.();
       return;
     }
@@ -140,17 +153,17 @@ class YandexService {
     };
 
     try {
-      this.ysdk.adv.showFullscreenAdv({
+      this.sdk.adv.showFullscreenAdv({
         callbacks: {
           onOpen: () => {
-            console.log('[YandexSDK] Interstitial ad opened.');
+            console.log('[PlayhopSDK] Interstitial ad opened.');
           },
           onClose: () => {
             restoreAudioAndResume();
             options?.onClose?.();
           },
           onError: (err) => {
-            console.warn('[YandexSDK] Interstitial ad error:', err);
+            console.warn('[PlayhopSDK] Interstitial ad error:', err);
             restoreAudioAndResume();
             options?.onError?.();
           },
@@ -161,11 +174,11 @@ class YandexService {
         },
       });
     } catch (err) {
-      console.warn('[YandexSDK] Failed to trigger ad:', err);
+      console.warn('[PlayhopSDK] Failed to trigger ad:', err);
       restoreAudioAndResume();
       options?.onClose?.();
     }
   }
 }
 
-export const yandex = new YandexService();
+export const playhop = new PlayhopService();

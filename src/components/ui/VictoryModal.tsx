@@ -3,6 +3,7 @@ import confetti from 'canvas-confetti';
 import { Trophy, RotateCcw, Clock, Swords, Sparkles, Hash, Award } from 'lucide-react';
 import { GameWinner, Player, GameMode, Move } from '../../game/types';
 import { playGameWin, playClick } from '../../utils/audio';
+import { useI18n } from '../../utils/i18n';
 
 export interface VictoryModalProps {
   winner: GameWinner;
@@ -15,18 +16,6 @@ export interface VictoryModalProps {
   onPlayAgain: () => void;
 }
 
-const SECTOR_NAMES = [
-  'Верх-Лево',
-  'Верх-Центр',
-  'Верх-Право',
-  'Центр-Лево',
-  'Центр',
-  'Центр-Право',
-  'Низ-Лево',
-  'Низ-Центр',
-  'Низ-Право',
-];
-
 export const VictoryModal: React.FC<VictoryModalProps> = ({
   winner,
   winningLine,
@@ -37,6 +26,8 @@ export const VictoryModal: React.FC<VictoryModalProps> = ({
   aiPlayer = 'O',
   onPlayAgain,
 }) => {
+  const { t, sectorNames, lang } = useI18n();
+
   useEffect(() => {
     if (!winner) return;
 
@@ -75,15 +66,15 @@ export const VictoryModal: React.FC<VictoryModalProps> = ({
   const formatDuration = (secs: number) => {
     const mins = Math.floor(secs / 60);
     const remainingSecs = secs % 60;
-    if (mins === 0) return `${remainingSecs} сек`;
-    return `${mins} мин ${remainingSecs} сек`;
+    if (mins === 0) return lang === 'ru' ? `${remainingSecs} сек` : `${remainingSecs}s`;
+    return lang === 'ru' ? `${mins} мин ${remainingSecs} сек` : `${mins}m ${remainingSecs}s`;
   };
 
   const getWinnerTitle = () => {
     if (winner === 'TIE') {
       return {
-        text: 'НИЧЬЯ!',
-        subtitle: 'Великолепная тактическая битва равных!',
+        text: t.tie,
+        subtitle: lang === 'ru' ? 'Великолепная тактическая битва равных!' : 'An incredible tactical battle of equals!',
         badgeColor: 'text-amber-400 border-amber-500/40 bg-amber-950/40 shadow-[0_0_24px_rgba(245,158,11,0.4)]',
         glowClass: 'drop-shadow-[0_0_25px_rgba(245,158,11,0.6)] text-amber-300',
       };
@@ -92,8 +83,10 @@ export const VictoryModal: React.FC<VictoryModalProps> = ({
     if (winner === 'X') {
       const isPlayerXAi = mode === 'ai' && aiPlayer === 'X';
       return {
-        text: 'ПОБЕДА КРЕСТИКОВ!',
-        subtitle: isPlayerXAi ? 'Искусственный интеллект одержал верх' : 'Игрок X триумфально завершил матч!',
+        text: t.victoryX,
+        subtitle: isPlayerXAi
+          ? (lang === 'ru' ? 'Искусственный интеллект одержал верх' : 'Artificial Intelligence takes the match!')
+          : (lang === 'ru' ? 'Игрок X триумфально завершил матч!' : 'Player X wins triumphantly!'),
         badgeColor: 'text-cyan-400 border-cyan-500/40 bg-cyan-950/40 shadow-[0_0_24px_rgba(6,182,212,0.4)]',
         glowClass: 'drop-shadow-[0_0_30px_rgba(6,182,212,0.8)] text-cyan-300',
       };
@@ -101,8 +94,10 @@ export const VictoryModal: React.FC<VictoryModalProps> = ({
 
     const isPlayerOAi = mode === 'ai' && aiPlayer === 'O';
     return {
-      text: 'ПОБЕДА НОЛИКОВ!',
-      subtitle: isPlayerOAi ? 'Искусственный интеллект одержал победу' : 'Игрок O разгромил противника!',
+      text: t.victoryO,
+      subtitle: isPlayerOAi
+        ? (lang === 'ru' ? 'Искусственный интеллект одержал победу' : 'Artificial Intelligence claims victory!')
+        : (lang === 'ru' ? 'Игрок O разгромил противника!' : 'Player O dominates the board!'),
       badgeColor: 'text-rose-400 border-rose-500/40 bg-rose-950/40 shadow-[0_0_24px_rgba(244,63,94,0.4)]',
       glowClass: 'drop-shadow-[0_0_30px_rgba(244,63,94,0.8)] text-rose-300',
     };
@@ -144,9 +139,9 @@ export const VictoryModal: React.FC<VictoryModalProps> = ({
         {winningLine && winningLine.length > 0 && (
           <div className="w-full flex items-center justify-center gap-2 px-3.5 py-2 rounded-xl bg-slate-950/60 border border-white/10 text-xs">
             <Award className="w-4 h-4 text-yellow-400" />
-            <span className="text-slate-400">Победный ряд секторов:</span>
+            <span className="text-slate-400">{t.sectorsWon}</span>
             <span className="text-white font-bold tracking-wide">
-              {winningLine.map((idx) => SECTOR_NAMES[idx] || `#${idx + 1}`).join(' • ')}
+              {winningLine.map((idx) => sectorNames[idx] || `#${idx + 1}`).join(' • ')}
             </span>
           </div>
         )}
@@ -157,7 +152,7 @@ export const VictoryModal: React.FC<VictoryModalProps> = ({
           <div className="flex flex-col items-center justify-center p-3 rounded-2xl bg-slate-800/50 border border-white/10">
             <div className="flex items-center gap-1 text-[11px] text-slate-400 mb-1">
               <Hash className="w-3.5 h-3.5 text-cyan-400" />
-              <span>Всего ходов</span>
+              <span>{t.statsMoves}</span>
             </div>
             <span className="text-lg font-black text-white">{totalMoves}</span>
             <span className="text-[10px] text-slate-400">
@@ -169,24 +164,24 @@ export const VictoryModal: React.FC<VictoryModalProps> = ({
           <div className="flex flex-col items-center justify-center p-3 rounded-2xl bg-slate-800/50 border border-white/10">
             <div className="flex items-center gap-1 text-[11px] text-slate-400 mb-1">
               <Sparkles className="w-3.5 h-3.5 text-purple-400" />
-              <span>Режим</span>
+              <span>{lang === 'ru' ? 'Режим' : 'Mode'}</span>
             </div>
             <span className="text-xs sm:text-sm font-bold text-white mt-1">
-              {mode === 'ai' ? 'Против ИИ' : '2 Игрока'}
+              {mode === 'ai' ? t.vsAi : t.twoPlayers}
             </span>
-            <span className="text-[10px] text-slate-400">Партия 9×9</span>
+            <span className="text-[10px] text-slate-400">9×9</span>
           </div>
 
           {/* Duration */}
           <div className="flex flex-col items-center justify-center p-3 rounded-2xl bg-slate-800/50 border border-white/10">
             <div className="flex items-center gap-1 text-[11px] text-slate-400 mb-1">
               <Clock className="w-3.5 h-3.5 text-sky-400" />
-              <span>Время</span>
+              <span>{lang === 'ru' ? 'Время' : 'Time'}</span>
             </div>
             <span className="text-sm sm:text-base font-black text-white mt-1">
               {formatDuration(durationSeconds)}
             </span>
-            <span className="text-[10px] text-slate-400">Длительность</span>
+            <span className="text-[10px] text-slate-400">{lang === 'ru' ? 'Длительность' : 'Duration'}</span>
           </div>
         </div>
 
@@ -197,7 +192,7 @@ export const VictoryModal: React.FC<VictoryModalProps> = ({
             className="w-full py-3.5 px-6 rounded-2xl font-black text-sm tracking-wider uppercase flex items-center justify-center gap-2.5 text-slate-950 bg-gradient-to-r from-cyan-400 via-sky-300 to-rose-400 hover:from-cyan-300 hover:to-rose-300 shadow-[0_0_30px_rgba(6,182,212,0.5)] transition active:scale-95"
           >
             <RotateCcw className="w-5 h-5" />
-            <span>Играть снова</span>
+            <span>{t.playAgain}</span>
           </button>
         </div>
       </div>

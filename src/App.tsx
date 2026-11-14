@@ -6,7 +6,7 @@ import { Scene, type SceneRef } from './components/3d';
 import { Navbar, Controls, RulesModal, VictoryModal, MultiplayerModal, type MultiplayerPlayer } from './components/ui';
 import { playMove, playSectorWin, playGameWin, playInvalid, playClick } from './utils/audio';
 import { socket } from './network/socket';
-import { yandex } from './utils/yandex';
+import { playhop } from './utils/playhop';
 
 export default function App() {
   const [gameState, setGameState] = useState<GameState>(() =>
@@ -30,8 +30,8 @@ export default function App() {
 
   // Check URL parameters for direct room joining (?room=CODE)
   useEffect(() => {
-    // Initialize Yandex Games SDK if in Yandex Games environment
-    yandex.init();
+    // Initialize Playhop SDK
+    playhop.init();
 
     const urlParams = new URLSearchParams(window.location.search);
     const roomParam = urlParams.get('room');
@@ -147,16 +147,16 @@ export default function App() {
     return () => clearInterval(timer);
   }, [gameStartTime, gameState.winner]);
 
-  // Handle Yandex Games gameplay lifecycle and interstitial ad on game end
+  // Handle Playhop gameplay lifecycle and interstitial ad on game end
   useEffect(() => {
     if (gameState.winner !== null) {
-      yandex.notifyGameplayStop();
+      playhop.notifyGameplayStop();
       const adTimer = setTimeout(() => {
-        yandex.showFullscreenAd();
+        playhop.showFullscreenAd();
       }, 1500);
       return () => clearTimeout(adTimer);
     } else {
-      yandex.notifyGameplayStart();
+      playhop.notifyGameplayStart();
     }
   }, [gameState.winner]);
 

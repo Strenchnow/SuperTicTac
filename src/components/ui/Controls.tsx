@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { GameMode, AIDifficulty } from '../../game/types';
 import { useAudioState, playClick } from '../../utils/audio';
+import { useI18n } from '../../utils/i18n';
 
 export interface ControlsProps {
   mode: GameMode;
@@ -41,6 +42,7 @@ export const Controls: React.FC<ControlsProps> = ({
   roomId = null,
   disabled = false,
 }) => {
+  const { lang, t, toggleLanguage } = useI18n();
   const { muted, toggle } = useAudioState();
   const [showConfirmRestart, setShowConfirmRestart] = useState(false);
   const [showDifficultyMenu, setShowDifficultyMenu] = useState(false);
@@ -78,9 +80,9 @@ export const Controls: React.FC<ControlsProps> = ({
   };
 
   const difficultyLabels: Record<AIDifficulty, { label: string; color: string; desc: string }> = {
-    easy: { label: 'Новичок', color: 'text-emerald-400 border-emerald-500/40 bg-emerald-950/40', desc: 'Случайные ходы и простая тактика' },
-    medium: { label: 'Тактик', color: 'text-cyan-400 border-cyan-500/40 bg-cyan-950/40', desc: 'Умная тактическая оценка секторов' },
-    hard: { label: 'Мастер', color: 'text-purple-400 border-purple-500/40 bg-purple-950/40', desc: 'Глубокий Minimax поиск' },
+    easy: { label: t.diffEasy, color: 'text-emerald-400 border-emerald-500/40 bg-emerald-950/40', desc: t.diffEasyDesc },
+    medium: { label: t.diffMedium, color: 'text-cyan-400 border-cyan-500/40 bg-cyan-950/40', desc: t.diffMediumDesc },
+    hard: { label: t.diffHard, color: 'text-purple-400 border-purple-500/40 bg-purple-950/40', desc: t.diffHardDesc },
   };
 
   return (
@@ -93,23 +95,23 @@ export const Controls: React.FC<ControlsProps> = ({
               <RotateCcw className="w-6 h-6 text-cyan-400 animate-spin" style={{ animationDuration: '3s' }} />
             </div>
             <h3 className="text-lg font-bold text-white tracking-wide">
-              Начать новую партию?
+              {t.restartTitle}
             </h3>
             <p className="text-xs text-slate-300 leading-relaxed">
-              Текущий прогресс поля будет сброшен. Вы уверены?
+              {t.restartDesc}
             </p>
             <div className="flex gap-3 justify-center pt-2">
               <button
                 onClick={cancelReset}
                 className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-300 bg-slate-800 hover:bg-slate-700 transition border border-white/10"
               >
-                Отмена
+                {t.cancel}
               </button>
               <button
                 onClick={confirmReset}
                 className="px-5 py-2 rounded-xl text-xs font-bold text-slate-950 bg-gradient-to-r from-cyan-400 to-sky-300 hover:from-cyan-300 hover:to-sky-200 shadow-[0_0_16px_rgba(6,182,212,0.5)] transition"
               >
-                Да, начать заново
+                {t.confirm}
               </button>
             </div>
           </div>
@@ -127,7 +129,7 @@ export const Controls: React.FC<ControlsProps> = ({
             title="Перезапустить партию"
           >
             <RotateCcw className="w-4 h-4 transition-transform group-hover:-rotate-90 duration-300" />
-            <span className="text-xs font-bold tracking-wide hidden sm:inline">Новая игра</span>
+            <span className="text-xs font-bold tracking-wide hidden sm:inline">{t.newGame}</span>
           </button>
 
           {/* Game Mode Selector (2 Players vs AI) */}
@@ -144,12 +146,12 @@ export const Controls: React.FC<ControlsProps> = ({
             {mode === 'ai' ? (
               <>
                 <Bot className="w-4 h-4 text-purple-400" />
-                <span className="text-xs font-bold">Против ИИ</span>
+                <span className="text-xs font-bold">{t.vsAi}</span>
               </>
             ) : (
               <>
                 <Users className="w-4 h-4 text-cyan-400" />
-                <span className="text-xs font-bold">2 Игрока</span>
+                <span className="text-xs font-bold">{t.twoPlayers}</span>
               </>
             )}
           </button>
@@ -221,7 +223,7 @@ export const Controls: React.FC<ControlsProps> = ({
             >
               <Globe className={`w-4 h-4 ${isMultiplayerActive ? 'text-emerald-400 animate-pulse' : 'text-cyan-400'}`} />
               <span className="text-xs font-bold">
-                {isMultiplayerActive ? `Онлайн (${roomId})` : 'По сети'}
+                {isMultiplayerActive ? `${t.online} (${roomId})` : t.online}
               </span>
             </button>
           )}
@@ -233,10 +235,10 @@ export const Controls: React.FC<ControlsProps> = ({
               onResetCamera();
             }}
             className="flex items-center gap-1.5 px-2.5 sm:px-3 py-2 rounded-xl bg-slate-800/80 hover:bg-slate-700/80 border border-white/10 text-slate-300 hover:text-white transition active:scale-95"
-            title="Сбросить ракурс 3D камеры"
+            title={t.camera}
           >
             <Camera className="w-4 h-4 text-sky-400" />
-            <span className="text-xs font-medium hidden md:inline">Камера</span>
+            <span className="text-xs font-medium hidden md:inline">{t.camera}</span>
           </button>
 
           {/* Audio Mute/Unmute Toggle */}
@@ -247,7 +249,7 @@ export const Controls: React.FC<ControlsProps> = ({
                 ? 'bg-rose-950/40 border-rose-500/40 text-rose-400 hover:bg-rose-900/50'
                 : 'bg-cyan-950/40 border-cyan-500/40 text-cyan-300 hover:bg-cyan-900/50'
             }`}
-            title={muted ? 'Включить звук' : 'Выключить звук'}
+            title={muted ? 'Unmute' : 'Mute'}
           >
             {muted ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
           </button>
@@ -259,10 +261,22 @@ export const Controls: React.FC<ControlsProps> = ({
               onOpenRules();
             }}
             className="flex items-center gap-1.5 px-2.5 sm:px-3 py-2 rounded-xl bg-slate-800/80 hover:bg-slate-700/80 border border-white/10 text-slate-300 hover:text-amber-300 transition active:scale-95"
-            title="Правила игры"
+            title={t.rules}
           >
             <HelpCircle className="w-4 h-4 text-amber-400" />
-            <span className="text-xs font-medium hidden sm:inline">Правила</span>
+            <span className="text-xs font-medium hidden sm:inline">{t.rules}</span>
+          </button>
+
+          {/* Language Switcher */}
+          <button
+            onClick={() => {
+              playClick();
+              toggleLanguage();
+            }}
+            className="flex items-center justify-center px-2 py-1.5 rounded-xl border border-white/10 bg-slate-800/80 hover:bg-slate-700 text-xs font-mono font-bold text-slate-300 hover:text-cyan-300 transition active:scale-95"
+            title="Switch Language / Сменить язык"
+          >
+            {lang.toUpperCase()}
           </button>
         </div>
       </div>

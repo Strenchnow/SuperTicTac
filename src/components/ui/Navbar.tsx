@@ -1,6 +1,7 @@
 import React from 'react';
 import { Bot, User, Sparkles, Target, Zap } from 'lucide-react';
 import { Player, GameWinner, GameMode } from '../../game/types';
+import { useI18n } from '../../utils/i18n';
 
 interface NavbarProps {
   currentPlayer: Player;
@@ -14,18 +15,6 @@ interface NavbarProps {
   roomCode?: string | null;
 }
 
-const SECTOR_NAMES = [
-  'Верх-Лево',
-  'Верх-Центр',
-  'Верх-Право',
-  'Центр-Лево',
-  'Центр',
-  'Центр-Право',
-  'Низ-Лево',
-  'Низ-Центр',
-  'Низ-Право',
-];
-
 export const Navbar: React.FC<NavbarProps> = ({
   currentPlayer,
   activeSector,
@@ -37,18 +26,19 @@ export const Navbar: React.FC<NavbarProps> = ({
   myRole = null,
   roomCode = null,
 }) => {
+  const { t, sectorNames } = useI18n();
   const isAiTurn = mode === 'ai' && currentPlayer === aiPlayer;
   const isX = currentPlayer === 'X';
   const isMyTurn = !isMultiplayer || myRole === currentPlayer;
 
   const getPlayerLabel = (player: Player) => {
     if (isMultiplayer) {
-      return player === myRole ? 'Вы' : 'Соперник';
+      return player === myRole ? t.you : t.opponent;
     }
     if (mode === 'ai') {
-      return player === aiPlayer ? 'ИИ' : 'Вы';
+      return player === aiPlayer ? t.ai : t.you;
     }
-    return `Игрок ${player}`;
+    return `${t.playerPrefix} ${player}`;
   };
 
   return (
@@ -74,7 +64,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               )}
             </div>
             <div className="text-[10px] text-slate-400 font-mono tracking-tight hidden sm:block">
-              СУПЕР КРЕСТИКИ-НОЛИКИ 9×9
+              {t.subtitle}
             </div>
           </div>
         </div>
@@ -87,7 +77,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-cyan-400 opacity-75"></span>
                 <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-cyan-500"></span>
               </span>
-              Матч завершен
+              {t.matchOver}
             </div>
           ) : (
             <>
@@ -101,7 +91,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                   }`}
                 >
                   <span className={`w-2 h-2 rounded-full ${isMyTurn ? 'bg-emerald-400' : 'bg-slate-500'}`} />
-                  <span>{isMyTurn ? 'ВАШ ХОД!' : 'Ход соперника...'}</span>
+                  <span>{isMyTurn ? t.yourTurn : t.opponentTurn}</span>
                 </div>
               )}
 
@@ -117,7 +107,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                 ) : (
                   <User className="w-4 h-4" />
                 )}
-                <span>Ход:</span>
+                <span>{t.turn}</span>
                 <span
                   className={`inline-flex items-center justify-center px-2 py-0.5 rounded font-black text-xs ${
                     isX ? 'bg-cyan-500 text-slate-950 shadow-[0_0_8px_#06b6d4]' : 'bg-rose-500 text-white shadow-[0_0_8px_#f43f5e]'
@@ -138,24 +128,24 @@ export const Navbar: React.FC<NavbarProps> = ({
                     <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse delay-75" />
                     <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse delay-150" />
                   </div>
-                  <span>ИИ рассчитывает ход...</span>
+                  <span>{t.aiThinking}</span>
                 </div>
               ) : activeSector === null ? (
                 /* Free Move Badge */
                 <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-950/50 border border-amber-500/50 text-amber-300 text-xs sm:text-sm font-semibold shadow-[0_0_14px_rgba(245,158,11,0.2)] animate-pulse">
                   <Sparkles className="w-4 h-4 text-amber-400 animate-spin" style={{ animationDuration: '4s' }} />
-                  <span>Свободный ход — выберите любой сектор!</span>
+                  <span>{t.freeMove}</span>
                 </div>
               ) : (
                 /* Targeted Sector Badge */
                 <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-800/80 border border-cyan-500/30 text-slate-200 text-xs sm:text-sm font-medium">
                   <Target className="w-4 h-4 text-cyan-400" />
-                  <span>Ход в сектор:</span>
+                  <span>{t.targetSector}</span>
                   <span className="text-cyan-300 font-bold">
-                    {SECTOR_NAMES[activeSector] || `№${activeSector + 1}`}
+                    {sectorNames[activeSector] || `№${activeSector + 1}`}
                   </span>
                   <span className="text-[11px] text-slate-400 font-mono hidden md:inline">
-                    [Ряд {Math.floor(activeSector / 3) + 1}, Кол {(activeSector % 3) + 1}]
+                    [{t.row} {Math.floor(activeSector / 3) + 1}, {t.col} {(activeSector % 3) + 1}]
                   </span>
                 </div>
               )}
